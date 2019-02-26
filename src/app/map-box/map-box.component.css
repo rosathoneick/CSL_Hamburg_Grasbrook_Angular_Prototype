@@ -1,0 +1,16 @@
+#map {
+	position: static;
+	height: 600px;
+}
+
+/*#map { position:absolute; top:0; bottom:0; width:100%; }*/
+
+#map .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan,
+#map .mapboxgl-canvas-container {
+	position: absolute;
+}
+
+#map .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan canvas,
+#map .mapboxgl-canvas-container canvas {
+	position: relative;
+}
