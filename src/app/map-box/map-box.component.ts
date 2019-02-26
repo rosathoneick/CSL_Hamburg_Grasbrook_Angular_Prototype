@@ -6,6 +6,9 @@ import { MapService } from '../map.service';
 import { GeoJson, FeatureCollection } from '../map';
 
 
+declare var Threebox: any;
+
+
 @Component({
   selector: 'map-box',
   templateUrl: './map-box.component.html',
@@ -24,6 +27,10 @@ export class MapBoxComponent implements OnInit{
   gridData: any;
   simDataSource: any;
 
+  // threebox hack
+  threebox: any
+  threeGrid: any
+
   constructor(
   	private mapService: MapService,
   	private gridDataService: GridDataService,
@@ -37,10 +44,6 @@ export class MapBoxComponent implements OnInit{
         this.latitude = this.gridDataService.getLatitude()
       	this.longitude = this.gridDataService.getLongitude()
       	this.rotation = (-1)*this.gridDataService.getRotation()
-
-        console.log('this.latitude:', this.latitude)
-        console.log('this.longitude:', this.longitude)
-
         this.initializeMap()
       });
   }
@@ -95,9 +98,99 @@ export class MapBoxComponent implements OnInit{
           "heatmap-radius": 10
         }
       });
+      
+
+      //add the custom THREE layer
+      let self = this;
+      // let onAdd = this.onAddThree;
+      this.map.addLayer({
+        id: "custom_layer",
+        type: "custom",
+        onAdd: function(map, gl) {
+          self.onAddThree(map, gl);
+          self.update_grid_from_cityio();
+        },
+        render: function(gl, matrix) {
+          self.threebox.update();
+        }
+      });
+
+
     })
 
   }
+
+  onAddThree(map: any, mbxContext: any) {
+      this.threebox = new Threebox(map, mbxContext);
+      this.threebox.setupDefaultLights();
+      console.log('this.gridDataService.gridDataCoordinates', this.gridDataService.gridDataCoordinates)
+      // adds the 3d cityscope gemoerty
+      this.threebox.addAtCoordinate(
+        this.gridDataService.gridDataCoordinates,
+        [this.latitude, this.longitude, 0],
+        {
+          preScale: 1
+        }
+      );
+      this.threeGrid = this.threebox.scene.children[0].children[1].children[0]
+    }
+
+    update_grid_from_cityio() {
+      var array_of_types_and_colors = [
+        {
+          type: "Road",
+          color: "rgb(100,100,100)",
+          height: 0
+        },
+        {
+          type: "Open Space",
+          color: "#13f797",
+          height: 0
+        },
+        {
+          type: "live",
+          color: "#007fff",
+          height: 30
+        },
+        {
+          type: "work",
+          color: "#cc28a2",
+          height: 100
+        },
+        {
+          type: "Work 2",
+          color: "#ec0868",
+          height: 50
+        }
+      ];
+
+      let cityIOdata = this.gridDataService.cityIOData;
+      let grid = this.threeGrid;
+      // let textHolder = Storage.threeText;
+
+      for (let i = 0; i < grid.children.length; i++) {
+        //cell edit
+        let thisCell = grid.children[i];
+        //clear the text obj
+        // textHolder.children[i].text = " ";
+        thisCell.position.z = 0;
+        thisCell.scale.z = 1;
+
+        if (cityIOdata.grid[i] !== -1) {
+          thisCell.material.color.set(
+            array_of_types_and_colors[cityIOdata.grid[i]].color
+          );
+          let this_cell_height =
+            array_of_types_and_colors[cityIOdata.grid[i]].height + 1;
+          thisCell.scale.z = this_cell_height;
+          thisCell.position.z = this_cell_height / 2;
+        } else {
+          // black outs the non-read pixels
+          thisCell.position.z = 0;
+          thisCell.material.color.set("rgb(0,0,0)");
+        }
+      }
+    }
 
 
   /// Helpers
@@ -129,10 +222,6 @@ export class MapBoxComponent implements OnInit{
     return [
     	this.latitude + (dLat * 180) / Math.PI,
     	this.longitude + (dLon * 180) / Math.PI];
-  }
-
-  removeMarker(marker) {
-  	console.log('fake removeMarker')
   }
 
   flyTo(data: GeoJson) {
