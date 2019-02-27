@@ -160,6 +160,7 @@ export class GridDataService {
         three_grid_group.add(this_mesh);
       }
     }
+
     // very bad!! using hardcode rotation
     three_grid_group.rotation.setFromVector3(
       new THREE.Vector3(0, 0, grid_rotation_for_table)

@@ -38,6 +38,10 @@ export class MapBoxComponent implements OnInit {
     this.gridDataService.getTableData().subscribe(_data => {
       this.latitude = this.gridDataService.getLatitude();
       this.longitude = this.gridDataService.getLongitude();
+
+      // this.gridData = this.gridDataService.cityIODataToGrid(_data);
+      // console.log(this.gridData);
+
       this.rotation = -1 * this.gridDataService.getRotation();
       this.initializeMap();
     });
@@ -122,7 +126,16 @@ export class MapBoxComponent implements OnInit {
         preScale: 1
       }
     );
+    // adds the 3d cityscope gemoerty
+    // this.threebox.addAtCoordinate(
+    //   this.gridDataService.cityIODataToGrid,
+    //   [this.latitude, this.longitude, 0],
+    //   {
+    //     preScale: 1
+    //   }
+    // );
     this.threeGrid = this.threebox.scene.children[0].children[1].children[0];
+    console.log(this.threeGrid);
   }
 
   update_grid_from_cityio() {

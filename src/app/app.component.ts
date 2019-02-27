@@ -1,6 +1,6 @@
 // import { Component } from '@angular/core';
 import { Component, ViewChild, ElementRef } from "@angular/core";
-import * as THREE from "three";
+// import * as THREE from "three";
 
 @Component({
   selector: "app-root",
