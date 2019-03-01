@@ -1,16 +1,25 @@
+/* #map {
+  position: static;
+  height: 1200px;
+} */
+
 #map {
-	position: static;
-	height: 600px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  z-index: -1;
 }
 
-/*#map { position:absolute; top:0; bottom:0; width:100%; }*/
-
-#map .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan,
+#map
+  .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan,
 #map .mapboxgl-canvas-container {
-	position: absolute;
+  position: absolute;
 }
 
-#map .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan canvas,
+#map
+  .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan
+  canvas,
 #map .mapboxgl-canvas-container canvas {
-	position: relative;
+  position: relative;
 }
