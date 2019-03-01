@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { FeatureCollection, GeoJson } from "../map/map";
+import { FeatureCollection, GeoJson } from "../map";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Observable, of } from "rxjs";
 import { catchError, map, tap } from "rxjs/operators";
