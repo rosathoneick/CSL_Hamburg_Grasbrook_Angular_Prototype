@@ -43,8 +43,17 @@ export class MapBoxComponent implements OnInit {
       // console.log(this.gridData);
 
       this.rotation = -1 * this.gridDataService.getRotation();
+
+      this.listenToCityIO();
       this.initializeMap();
     });
+  }
+
+  //WIP: testing repeated calls to cityIO
+  private listenToCityIO() {
+    setInterval(() => {
+      var result = this.gridDataService.getTableData();
+    }, 1000);
   }
 
   private initializeMap() {
