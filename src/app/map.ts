@@ -27,7 +27,19 @@ export interface IGeoJson {
     $key?: string;
 }
 
-export class GeoJson implements IGeoJson {
+export class GeoJsonPolygon implements IGeoJson {
+  type = 'Feature';
+  geometry: IGeometry;
+
+  constructor(coordinates, public properties?) {
+    this.geometry = {
+      type: 'Polygon',
+      coordinates: [coordinates]
+    }
+  }
+}
+
+export class GeoJsonPoint implements IGeoJson {
   type = 'Feature';
   geometry: IGeometry;
 
@@ -41,7 +53,7 @@ export class GeoJson implements IGeoJson {
 
 export class FeatureCollection {
   type = 'FeatureCollection'
-  constructor(public features: Array<GeoJson>) {}
+  constructor(public features: Array<IGeoJson>) {}
 }
 
 export class Map {
