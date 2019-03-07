@@ -36,6 +36,9 @@ export class GeoJsonPolygon implements IGeoJson {
       type: 'Polygon',
       coordinates: [coordinates]
     }
+    this.properties = {
+      color: !!(properties && properties.color) ? properties.color : 'orange'
+    }
   }
 }
 

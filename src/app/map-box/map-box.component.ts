@@ -87,7 +87,7 @@ export class MapBoxComponent implements OnInit {
           // https://docs.mapbox.com/mapbox-gl-js/style-spec/#expressions
            
           // Get the fill-extrusion-color from the source 'color' property.
-          'fill-extrusion-color': 'orange',// ['get', 'color'],
+          'fill-extrusion-color': ['get', 'color'],
            
           // Get fill-extrusion-height from the source 'height' property.
           'fill-extrusion-height': 30, //['get', 'height'],
@@ -107,7 +107,7 @@ export class MapBoxComponent implements OnInit {
       //// Add Marker on Click
       this.map.on('click', (event) => {
         const coordinates = [event.lngLat.lng, event.lngLat.lat]
-        let gridDataCells = this.gridDataService.addGridData(coordinates)
+        let gridDataCells = this.gridDataService.addGridDataCell(coordinates)
         this.gridDataCellsSource.setData(new FeatureCollection(gridDataCells))
       })
 
