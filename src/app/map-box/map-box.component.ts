@@ -90,10 +90,10 @@ export class MapBoxComponent implements OnInit {
           'fill-extrusion-color': ['get', 'color'],
            
           // Get fill-extrusion-height from the source 'height' property.
-          'fill-extrusion-height': 30, //['get', 'height'],
+          'fill-extrusion-height': ['get', 'height'],
            
-          // Get fill-extrusion-base from the source 'base_height' property.
-          'fill-extrusion-base': 10, //['get', 'base_height'],
+          // Get fill-extrusion-base from the source 'baseHeight' property.
+          'fill-extrusion-base': ['get', 'baseHeight'],
            
           // Make extrusions slightly opaque for see through indoor walls.
           'fill-extrusion-opacity': 0.8

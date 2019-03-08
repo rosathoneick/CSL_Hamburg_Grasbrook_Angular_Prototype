@@ -1,5 +1,8 @@
 import { Injectable } from '@angular/core';
-import { FeatureCollection, GeoJsonPolygon } from './map';
+import {
+  FeatureCollection, GeoJsonPolygon,
+  bikeGeoJsonProperties, buildingGeoJsonProperties, parkGeoJsonProperties
+} from './map';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
@@ -64,7 +67,8 @@ export class GridDataService {
         this.gridCellSize = this.cityIOData.header.spatial.cellSize;
         let gridDataCells = this.generateGridDataCellsFromCityIOData(
           this.cityIOData.header.spatial.nrows,
-          this.cityIOData.header.spatial.ncols
+          this.cityIOData.header.spatial.ncols,
+          this.cityIOData.grid
         );
         this.gridDataCells = gridDataCells;
       }),
@@ -72,7 +76,7 @@ export class GridDataService {
     );
 	}
 
-  private generateGridDataCellsFromCityIOData(nrows: number, ncols: number): GeoJsonPolygon[] {
+  private generateGridDataCellsFromCityIOData(nrows: number, ncols: number, grid: number[]): GeoJsonPolygon[] {
     /**
     * Constructs and returns the GeoJsonPolygon grid cells from the
     * passed in CityIO data.
@@ -81,18 +85,45 @@ export class GridDataService {
     *
     * @param nrows: number of rows in the cityIO grid
     * @param ncols: number of columns in the cityIO grid
+    * @param grid: array of values representing land use in each grid cell
     * @returns and array of GeoJsonPolygons.
     **/
     let polygons = [];
+    let gridIndex = 0;
     for (var row = 0; row < nrows; row++) {
       for (var col = 0; col < ncols; col++) {
-        // Make geoJSON polygon from coordinates
+        // Make geoJsonPolygon
+        // Get the polygon coordinates
         let polygonCoordinates = this.generateCoordinatesFromCityIOData(row, col);
-        let polygon = new GeoJsonPolygon(polygonCoordinates);
+        // Get the polygon properties from the cityIO grid data
+        let properties = this.getGridCellProperties(grid, gridIndex);
+        let polygon = new GeoJsonPolygon(polygonCoordinates, properties);
         polygons.push(polygon);
+        gridIndex += 1;
       }
     }
     return polygons;
+  }
+
+  private getGridCellProperties(grid: number[], gridIndex: number): object {
+    // grid is expected to be a 1-D array.  If that is not the case, then
+    // use dummy data.
+    // TODO: have unchanging data format!
+    let gridValue;
+    if (gridIndex < grid.length && typeof grid[gridIndex] === 'number') {
+      gridValue = grid[gridIndex];
+    } else {
+      gridValue = (gridIndex % 4) - 1;  // integer between -1 and 2
+    }
+    switch (gridValue) {
+      case (0):
+        return buildingGeoJsonProperties;
+        break;
+      case (1):
+        return parkGeoJsonProperties;
+      default:
+        return null;
+    }
   }
 
   private generateCoordinatesFromCityIOData(row: number, col: number): number[][] {
@@ -128,7 +159,7 @@ export class GridDataService {
       this.metersOffsetToLatLong(coordinates[0], coordinates[1], 0, squareSize),
       coordinates
      ];
-    let polygon = new GeoJsonPolygon(polygonCoordinates, {color: 'red'});
+    let polygon = new GeoJsonPolygon(polygonCoordinates);
     this.gridDataCells.push(polygon);
     return this.gridDataCells;
   }
