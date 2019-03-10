@@ -20,9 +20,8 @@ export class MapBoxComponent implements OnInit {
   rotation: number;
   center: number[];
 
-  // data
-  gridData: any;
-  gridDataSource: any;
+  gridDataCells: any;
+
   gridDataCellsSource: any;
   simDataSource: any;
 
@@ -32,23 +31,20 @@ export class MapBoxComponent implements OnInit {
     mapboxgl.accessToken = environment.mapbox.accessToken
   }
 
-  //WIP: testing repeated calls to cityIO
-  private listenToCityIO() {
-    setInterval(() => {
-      var result = this.gridDataService.getTableData();
-    }, 1000);
-  }
-
 
   ngOnInit() {
-    this.gridDataService.getTableData()
+    this.gridDataCells = this.gridDataService.gridDataCells
+    this.gridDataService.getMetadata()
       .subscribe(_data => {
         this.latitude = this.gridDataService.getLatitude()
       	this.longitude = this.gridDataService.getLongitude()
       	this.rotation = (-1)*this.gridDataService.getRotation()
         this.initializeMap()
       });
-      this.listenToCityIO();
+      
+    setInterval(() => {
+      this.gridDataService.fetchGridData()
+    }, 1000);
   }
 
   private initializeMap() {
@@ -77,7 +73,7 @@ export class MapBoxComponent implements OnInit {
          }
       });
       this.gridDataCellsSource = this.map.getSource('gridDataCells')
-      /// create map layers with realtime data (TODO: subscribe to grid data service)
+
       this.map.addLayer({
         id: 'gridDataCells',
         source: 'gridDataCells',
@@ -99,20 +95,41 @@ export class MapBoxComponent implements OnInit {
           'fill-extrusion-opacity': 0.8
         }
       })
-      let gridDataCells = this.gridDataService.getGridDataCells()
-      let dataCells = new FeatureCollection(gridDataCells)
-      this.gridDataCellsSource.setData(dataCells)
-
-
-      //// Add Marker on Click
-      this.map.on('click', (event) => {
-        const coordinates = [event.lngLat.lng, event.lngLat.lat]
-        let gridDataCells = this.gridDataService.addGridDataCell(coordinates)
-        this.gridDataCellsSource.setData(new FeatureCollection(gridDataCells))
+      
+      this.gridDataCells.subscribe(gridDataCells => {
+        let dataCellFeatureCollection = new FeatureCollection(gridDataCells)
+        this.gridDataCellsSource.setData(dataCellFeatureCollection)
       })
 
+      // When an existing grid cell is clicked on, update it if in edit mode
+      this.map.on('click', 'gridDataCells', (event) => {
+        // prevent click event from propogating to other handlers
+        event.originalEvent.cancelBubble = true;
+        const gridDataCell = event.features[0];
+        this.gridDataService.updateGridDataCell(gridDataCell)
+        return false
+      })
 
-      /// register source with the dummy data of 1 point
+      // Make existing grid cells interactive
+      // Show they are interactive with pointer
+      // Change the cursor to a pointer when the mouse is over the places layer.
+      this.map.on('mouseenter', 'gridDataCells', () => {
+        this.map.getCanvas().style.cursor = 'pointer';
+      });
+      // Change it back when it leaves.
+      this.map.on('mouseleave', 'gridDataCells', () => {
+        this.map.getCanvas().style.cursor = '';
+      })
+      // Add grid cell on Click
+      this.map.on('click', (event) => {
+        // only handle click event if it has not already been handled
+        if (event.originalEvent.cancelBubble)
+          return
+        const coordinates = [event.lngLat.lng, event.lngLat.lat]
+        this.gridDataService.addGridDataCell(coordinates)
+      })
+
+      // register source with the dummy data of 1 point
       this.map.addSource("simData", {
         type: "geojson",
         data: {
@@ -120,13 +137,13 @@ export class MapBoxComponent implements OnInit {
           coordinates: [0, 0]
         }
       });
-      /// get source
+      // get source
       this.simDataSource = this.map.getSource("simData");
       this.mobilitySimulationService.getSimulationData().subscribe(data => {
         this.simDataSource.setData(data);
       });
 
-      //add the point simulation layer
+      // add the point simulation layer
       this.map.addLayer({
         id: "MultiPoint",
         source: "simData",

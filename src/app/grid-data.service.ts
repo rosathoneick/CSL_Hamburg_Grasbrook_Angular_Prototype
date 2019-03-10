@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
 import {
   FeatureCollection, GeoJsonPolygon,
-  bikeGeoJsonProperties, buildingGeoJsonProperties, parkGeoJsonProperties
+  bikeGeoJsonProperties, buildingGeoJsonProperties, parkGeoJsonProperties,
+  defaultGeoJsonProperties
 } from './map';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, BehaviorSubject, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 
 
@@ -29,52 +30,61 @@ export class GridDataService {
 	rotation: number;
   gridCellSize: number;
 
-  gridDataCells: GeoJsonPolygon[];
+  gridDataCells: Observable<GeoJsonPolygon[]>;
+  private _gridDataCells: BehaviorSubject<GeoJsonPolygon[]>;
+  private dataStore: {  // This is where we will store our data in memory
+    gridDataCells: GeoJsonPolygon[]
+  }
 
 
   constructor(private http: HttpClient) {
   	this.cityIOTableURL = this.getTableURL()
-    this.gridDataCells = [];
-  	if (USE_FAKE_DATA) {
-  		console.log('using fake data instead of city IO')
-  		this.setupFakeData()
-  	}
+
+    this.dataStore = { gridDataCells: [] };
+    this._gridDataCells = <BehaviorSubject<GeoJsonPolygon[]>>new BehaviorSubject([])
+    this.gridDataCells = this._gridDataCells.asObservable()
   }
 
   getTableURL(): string {
-  	let cityIOTableName = window.location.search.substring(1);
-  	if (!cityIOTableName.length) {
-  		console.log('using default city IO table: ', DEFAULT_CITY_IO_TABLE_NAME)
-  	  	cityIOTableName = DEFAULT_CITY_IO_TABLE_NAME
-  	}
-  	console.log('using cityIO table: ', cityIOTableName)
-  	return CITY_IO_API_ENDPOINT_TABLE_PREFIX + cityIOTableName
+    return 'http://localhost:4200/assets/mock-grid-data.json';
+  	// let cityIOTableName = window.location.search.substring(1);
+  	// if (!cityIOTableName.length) {
+  	// 	console.log('using default city IO table: ', DEFAULT_CITY_IO_TABLE_NAME)
+  	//   	cityIOTableName = DEFAULT_CITY_IO_TABLE_NAME
+  	// }
+  	// console.log('using cityIO table: ', cityIOTableName)
+  	// return CITY_IO_API_ENDPOINT_TABLE_PREFIX + cityIOTableName
   }
 
-  getTableData(): Observable<any> {
+  getMetadata(): Observable<any> {
     if (USE_FAKE_DATA) {
       this.setupFakeData()
       return of(this.gridDataCells);
     }
-	  return this.http.get<any>(this.cityIOTableURL).pipe(
+	  return this.http.get(this.cityIOTableURL)
+    .pipe(
 	  	tap(cityIOData => {
-        console.log('fetched cityIOdata:', cityIOData)
         this.cityIOData = cityIOData
-        // this.gridDataCells = this.cityIODataToGridCells(this.cityIOData)
         this.latitude = this.cityIOData.header.spatial.latitude;
         this.longitude = this.cityIOData.header.spatial.longitude;
         this.rotation = this.cityIOData.header.spatial.rotation;
+      }),
+      catchError(this.handleError('getMetadata', [])) // Still returns result (empty)
+    );
+	}
+
+  fetchGridData() {
+    this.http.get(this.cityIOTableURL).subscribe(cityIOData => {
         this.gridCellSize = this.cityIOData.header.spatial.cellSize;
         let gridDataCells = this.generateGridDataCellsFromCityIOData(
           this.cityIOData.header.spatial.nrows,
           this.cityIOData.header.spatial.ncols,
           this.cityIOData.grid
         );
-        this.gridDataCells = gridDataCells;
-      }),
-      catchError(this.handleError('getTableData', [])) // Still returns result (empty)
-    );
-	}
+        this.dataStore.gridDataCells = gridDataCells;
+        this._gridDataCells.next(Object.assign({}, this.dataStore).gridDataCells);
+    }, error => console.log('Could not load grid data.'));
+  }
 
   private generateGridDataCellsFromCityIOData(nrows: number, ncols: number, grid: number[]): GeoJsonPolygon[] {
     /**
@@ -89,40 +99,52 @@ export class GridDataService {
     * @returns and array of GeoJsonPolygons.
     **/
     let polygons = [];
-    let gridIndex = 0;
+    let index = 0;
     for (var row = 0; row < nrows; row++) {
       for (var col = 0; col < ncols; col++) {
         // Make geoJsonPolygon
         // Get the polygon coordinates
         let polygonCoordinates = this.generateCoordinatesFromCityIOData(row, col);
         // Get the polygon properties from the cityIO grid data
-        let properties = this.getGridCellProperties(grid, gridIndex);
+        let gridCelltype = this.getGridCellType(grid, index);
+        let properties = this.getGridCellProperties(index, gridCelltype);
         let polygon = new GeoJsonPolygon(polygonCoordinates, properties);
         polygons.push(polygon);
-        gridIndex += 1;
+        index += 1;
       }
     }
     return polygons;
   }
 
-  private getGridCellProperties(grid: number[], gridIndex: number): object {
+  private getGridCellType(grid: number[],  index: number): string {
     // grid is expected to be a 1-D array.  If that is not the case, then
     // use dummy data.
     // TODO: have unchanging data format!
     let gridValue;
-    if (gridIndex < grid.length && typeof grid[gridIndex] === 'number') {
-      gridValue = grid[gridIndex];
-    } else {
-      gridValue = (gridIndex % 4) - 1;  // integer between -1 and 2
-    }
+    if (index < grid.length && typeof grid[index] === 'number')
+      gridValue = grid[index];
+    else
+      gridValue = (index % 4) - 1;  // integer between -1 and 2
+    // TODO: Can use types from cityIO data maping
     switch (gridValue) {
       case (0):
-        return buildingGeoJsonProperties;
-        break;
+        return 'building';
       case (1):
-        return parkGeoJsonProperties;
+        return 'park';
+      // TODO: add more types
       default:
         return null;
+    }
+  }
+
+  private getGridCellProperties(index: number, type: string): object {
+    switch (type) {
+      case ('building'):
+        return Object.assign({'index': index}, buildingGeoJsonProperties)
+      case ('park'):
+        return Object.assign({'index': index}, parkGeoJsonProperties)
+      default: 
+        return Object.assign({'index': index}, defaultGeoJsonProperties)
     }
   }
 
@@ -145,12 +167,7 @@ export class GridDataService {
     return this.rotatePolygon(0, [this.latitude, this.longitude], polygonCoordinates);
   }
 
-
-  getGridDataCells(): GeoJsonPolygon[] {
-    return this.gridDataCells;
-  }
-
-  addGridDataCell(coordinates: number[]): GeoJsonPolygon[] {
+  addGridDataCell(coordinates: number[]) {
     let squareSize = this.gridCellSize;
     let polygonCoordinates = [
       coordinates,
@@ -158,12 +175,22 @@ export class GridDataService {
       this.metersOffsetToLatLong(coordinates[0], coordinates[1], squareSize, squareSize),
       this.metersOffsetToLatLong(coordinates[0], coordinates[1], 0, squareSize),
       coordinates
-     ];
-    let polygon = new GeoJsonPolygon(polygonCoordinates);
-    this.gridDataCells.push(polygon);
-    return this.gridDataCells;
+    ];
+    let newIndex = this.dataStore.gridDataCells.length;
+    let gridCellProperties = this.getGridCellProperties(newIndex, '');
+    let polygon = new GeoJsonPolygon(polygonCoordinates, gridCellProperties);
+    // TODO: push data to cityIO server (when not in edit mode)
+    this.dataStore.gridDataCells.push(polygon);
+    this._gridDataCells.next(Object.assign({}, this.dataStore).gridDataCells);
   }
 
+  updateGridDataCell(gridDataCell: GeoJsonPolygon) {
+    // update the properties of the cell
+    let index = gridDataCell.properties.index;
+    let newGridCellProperties = this.getGridCellProperties(index, 'building')
+    this.dataStore.gridDataCells[index].properties = newGridCellProperties
+    this._gridDataCells.next(Object.assign({}, this.dataStore).gridDataCells)
+  }
 
 	/**
 	* Handle Http operation that failed.
@@ -195,21 +222,21 @@ export class GridDataService {
 
   getLatitude(): number {
     if (!this.cityIOData)
-      this.getTableData().subscribe(_ => {return this.latitude})
+      this.getMetadata().subscribe(_ => {return this.latitude})
     else
       return this.latitude;
   }
 
   getLongitude(): number {
     if (!this.cityIOData)
-      this.getTableData().subscribe(_ => {return this.longitude})
+      this.getMetadata().subscribe(_ => {return this.longitude})
     else
       return this.longitude;
   }
 
   getRotation(): number {
     if (!this.cityIOData)
-      this.getTableData().subscribe(_ => {return this.rotation})
+      this.getMetadata().subscribe(_ => {return this.rotation})
     else
       return this.rotation;
   }
