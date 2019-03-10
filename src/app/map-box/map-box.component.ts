@@ -101,8 +101,30 @@ export class MapBoxComponent implements OnInit {
         this.gridDataCellsSource.setData(dataCellFeatureCollection)
       })
 
-      // Add Marker on Click
+      // When an existing grid cell is clicked on, update it if in edit mode
+      this.map.on('click', 'gridDataCells', (event) => {
+        // prevent click event from propogating to other handlers
+        event.originalEvent.cancelBubble = true;
+        const gridDataCell = event.features[0];
+        this.gridDataService.updateGridDataCell(gridDataCell)
+        return false
+      })
+
+      // Make existing grid cells interactive
+      // Show they are interactive with pointer
+      // Change the cursor to a pointer when the mouse is over the places layer.
+      this.map.on('mouseenter', 'gridDataCells', () => {
+        this.map.getCanvas().style.cursor = 'pointer';
+      });
+      // Change it back when it leaves.
+      this.map.on('mouseleave', 'gridDataCells', () => {
+        this.map.getCanvas().style.cursor = '';
+      })
+      // Add grid cell on Click
       this.map.on('click', (event) => {
+        // only handle click event if it has not already been handled
+        if (event.originalEvent.cancelBubble)
+          return
         const coordinates = [event.lngLat.lng, event.lngLat.lat]
         this.gridDataService.addGridDataCell(coordinates)
       })
