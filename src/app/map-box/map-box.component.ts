@@ -5,7 +5,6 @@ import { GridDataService } from "../grid-data.service";
 import { MobilitySimulationService } from "../mobility-simulation/mobility-simulation.service";
 import { FeatureCollection } from "../map";
 
-
 @Component({
   selector: "map-box",
   templateUrl: "./map-box.component.html",
@@ -26,25 +25,24 @@ export class MapBoxComponent implements OnInit {
   simDataSource: any;
 
   constructor(
-  	private gridDataService: GridDataService,
-    private mobilitySimulationService: MobilitySimulationService) {
-    mapboxgl.accessToken = environment.mapbox.accessToken
+    private gridDataService: GridDataService,
+    private mobilitySimulationService: MobilitySimulationService
+  ) {
+    mapboxgl.accessToken = environment.mapbox.accessToken;
   }
 
-
   ngOnInit() {
-    this.gridDataCells = this.gridDataService.gridDataCells
-    this.gridDataService.getMetadata()
-      .subscribe(_data => {
-        this.latitude = this.gridDataService.getLatitude()
-      	this.longitude = this.gridDataService.getLongitude()
-      	this.rotation = (-1)*this.gridDataService.getRotation()
-        this.initializeMap()
-      });
-      
+    this.gridDataCells = this.gridDataService.gridDataCells;
+    this.gridDataService.getMetadata().subscribe(_data => {
+      this.latitude = this.gridDataService.getLatitude();
+      this.longitude = this.gridDataService.getLongitude();
+      this.rotation = -1 * this.gridDataService.getRotation();
+      this.initializeMap();
+    });
+
     setInterval(() => {
-      this.gridDataService.fetchGridData()
-    }, 1000);
+      this.gridDataService.fetchGridData();
+    }, 2000);
   }
 
   private initializeMap() {
@@ -53,8 +51,8 @@ export class MapBoxComponent implements OnInit {
       container: "map",
       style: this.style,
       zoom: 14,
-	    bearing: this.rotation,
-	    pitch: 0,
+      bearing: this.rotation,
+      pitch: 0,
       center: this.center
     });
 
@@ -62,72 +60,70 @@ export class MapBoxComponent implements OnInit {
     this.map.addControl(new mapboxgl.NavigationControl());
 
     /// Add realtime firebase data on map load
-    this.map.on('load', (event) => {
-
+    this.map.on("load", event => {
       /// register gridDataCells source
-      this.map.addSource('gridDataCells', {
-         type: 'geojson',
-         data: {
-           type: 'FeatureCollection',
-           features: []
-         }
+      this.map.addSource("gridDataCells", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: []
+        }
       });
-      this.gridDataCellsSource = this.map.getSource('gridDataCells')
+      this.gridDataCellsSource = this.map.getSource("gridDataCells");
 
       this.map.addLayer({
-        id: 'gridDataCells',
-        source: 'gridDataCells',
-        type: 'fill-extrusion',
+        id: "gridDataCells",
+        source: "gridDataCells",
+        type: "fill-extrusion",
         paint: {
           // See the Mapbox Style Specification for details on data expressions.
           // https://docs.mapbox.com/mapbox-gl-js/style-spec/#expressions
-           
+
           // Get the fill-extrusion-color from the source 'color' property.
-          'fill-extrusion-color': ['get', 'color'],
-           
+          "fill-extrusion-color": ["get", "color"],
+
           // Get fill-extrusion-height from the source 'height' property.
-          'fill-extrusion-height': ['get', 'height'],
-           
+          "fill-extrusion-height": ["get", "height"],
+
           // Get fill-extrusion-base from the source 'baseHeight' property.
-          'fill-extrusion-base': ['get', 'baseHeight'],
-           
+          "fill-extrusion-base": ["get", "baseHeight"],
+
           // Make extrusions slightly opaque for see through indoor walls.
-          'fill-extrusion-opacity': 0.8
+          "fill-extrusion-opacity": 0.8
         }
-      })
-      
+      });
+
       this.gridDataCells.subscribe(gridDataCells => {
-        let dataCellFeatureCollection = new FeatureCollection(gridDataCells)
-        this.gridDataCellsSource.setData(dataCellFeatureCollection)
-      })
+        let dataCellFeatureCollection = new FeatureCollection(gridDataCells);
+        this.gridDataCellsSource.setData(dataCellFeatureCollection);
+      });
 
       // When an existing grid cell is clicked on, update it if in edit mode
-      this.map.on('click', 'gridDataCells', (event) => {
+      this.map.on("click", "gridDataCells", event => {
         // prevent click event from propogating to other handlers
         event.originalEvent.cancelBubble = true;
         const gridDataCell = event.features[0];
-        this.gridDataService.updateGridDataCell(gridDataCell)
-        return false
-      })
+        this.gridDataService.updateGridDataCell(gridDataCell);
+        return false;
+      });
 
       // Make existing grid cells interactive
       // Show they are interactive with pointer
       // Change the cursor to a pointer when the mouse is over the places layer.
-      this.map.on('mouseenter', 'gridDataCells', () => {
-        this.map.getCanvas().style.cursor = 'pointer';
+      this.map.on("mouseenter", "gridDataCells", () => {
+        this.map.getCanvas().style.cursor = "pointer";
       });
       // Change it back when it leaves.
-      this.map.on('mouseleave', 'gridDataCells', () => {
-        this.map.getCanvas().style.cursor = '';
-      })
+      this.map.on("mouseleave", "gridDataCells", () => {
+        this.map.getCanvas().style.cursor = "";
+      });
       // Add grid cell on Click
-      this.map.on('click', (event) => {
+      this.map.on("click", event => {
         // only handle click event if it has not already been handled
-        if (event.originalEvent.cancelBubble)
-          return
-        const coordinates = [event.lngLat.lng, event.lngLat.lat]
-        this.gridDataService.addGridDataCell(coordinates)
-      })
+        if (event.originalEvent.cancelBubble) return;
+        const coordinates = [event.lngLat.lng, event.lngLat.lat];
+        this.gridDataService.addGridDataCell(coordinates);
+      });
 
       // register source with the dummy data of 1 point
       this.map.addSource("simData", {
@@ -152,7 +148,7 @@ export class MapBoxComponent implements OnInit {
           "heatmap-radius": 10
         }
       });
-    })
+    });
   }
 
   /// Helpers

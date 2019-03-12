@@ -8,13 +8,13 @@
     "name": "grasbrook",
     "spatial": {
       "nrows": 1,
-      "ncols": 2,
+      "ncols": 1,
       "physical_longitude": 53.5369,
       "physical_latitude": 10.00748,
       "longitude": 53.536898,
       "latitude": 10.007472,
       "cellSize": 200,
-      "rotation": 0
+      "rotation": 325
     },
     "owner": {
       "name": "Ariel Noyman",

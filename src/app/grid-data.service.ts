@@ -163,41 +163,101 @@ export class GridDataService {
     }
   }
 
-  private generateCoordinatesFromCityIOData(
-    row: number,
-    col: number
-  ): number[][] {
-    // TODO: properly rotate polygon
-    // make polygon coordinates array
-    let squareSize = this.gridCellSize;
-    // build the base polygon
-    let polygonCoordinates = [
-      [0, 0],
-      this.metersOffsetToLatLong(0, 0, squareSize, 0),
-      this.metersOffsetToLatLong(0, 0, squareSize, squareSize),
-      this.metersOffsetToLatLong(0, 0, 0, squareSize),
-      [0, 0]
-    ];
-    // translate polygon coodinates
-    let position = this.metersOffsetToLatLong(
-      this.latitude,
-      this.longitude,
-      row * this.gridCellSize,
-      col * this.gridCellSize
-    );
-    // then move the polygon to the table's origins
-    polygonCoordinates = this.translatePolygon(position, polygonCoordinates);
-    // rotate polygon coordinates
-    let rotation = this.rotation;
-    return this.rotatePolygon(
-      rotation,
-      [this.latitude, this.longitude],
-      polygonCoordinates
-    );
+  /*--------------------------------------------*/
+  /*--------------------------------------------*/
+  /*--------------------------------------------*/
+
+  // Helper functions for working with latitude and longitude
+
+  metersOffsetToLatLong(
+    originLat: number,
+    originLon: number,
+    distX: number,
+    distY: number
+  ): number[] {
+    /**
+     * Returns coordinate pair [newLat, newLon] where values are offset by
+     * dx, dy meters from center lat, long.
+     *
+     * @param centerLat: central latitude point
+     * @param centerLon: central longitude point
+     * @param dx: x offset in meters
+     * @param xy: y offset in meters
+     * @returns array representing new [lat, lon] coodinate pair.
+     **/
+
+    /*
+    // current method 
+
+    let dLat = distX / EARTH_RADIUS;
+    let dLon = distY / (EARTH_RADIUS * Math.cos((Math.PI * originLat) / 180));
+    dLat = (dLat * 180) / Math.PI;
+    dLon = (dLon * 180) / Math.PI;
+    let newLat = originLat + dLat;
+    let newLon = originLon + dLon;
+    return [newLat, newLon];
+    */
+
+    let c = this.WGS84toEPSG31468([originLat, originLon]);
+    let p = [c[0] + distX, c[1] + distY];
+    let d = this.inverseToWGS84(p);
+    return d;
   }
+
+  WGS84toEPSG31468(coordinateToReproject: number[]): number[] {
+    // http://spatialreference.org/ref/epsg/dhdn-gauss-kruger-zone-4/proj4/
+    var epsg31468 =
+      "+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs";
+    let reprojectedCoordinate = proj4(epsg31468, [
+      coordinateToReproject[0],
+      coordinateToReproject[1]
+    ]);
+    return reprojectedCoordinate;
+  }
+
+  inverseToWGS84(coordinateToReproject: number[]): number[] {
+    // http://spatialreference.org/ref/epsg/dhdn-gauss-kruger-zone-4/proj4/
+    var epsg31468 =
+      "+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs";
+    var wsg84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs";
+    let reprojectedCoordinate = proj4(wsg84, epsg31468).inverse([
+      coordinateToReproject[0],
+      coordinateToReproject[1]
+    ]);
+    return reprojectedCoordinate;
+  }
+  /*--------------------------------------------*/
+  /*--------------------------------------------*/
+  /*--------------------------------------------*/
+
+  generateCoordinatesFromCityIOData(row: number, col: number): number[][] {
+    let squareSize = this.gridCellSize;
+    let coordinates = [this.latitude, this.longitude];
+    let polygonCoordinates = [
+      // 0
+      [coordinates[0], coordinates[1]],
+      // 1
+      this.metersOffsetToLatLong(coordinates[0], coordinates[1], squareSize, 0),
+      // 2
+      this.metersOffsetToLatLong(
+        coordinates[0],
+        coordinates[1],
+        squareSize,
+        squareSize
+      ),
+      // 3
+      this.metersOffsetToLatLong(coordinates[0], coordinates[1], 0, squareSize),
+      // 4
+      [coordinates[0], coordinates[1]]
+    ];
+    return polygonCoordinates;
+  }
+
+  /*--------------------------------------------*/
 
   addGridDataCell(coordinates: number[]) {
     let squareSize = this.gridCellSize;
+
     let polygonCoordinates = [
       coordinates,
       this.metersOffsetToLatLong(coordinates[0], coordinates[1], squareSize, 0),
@@ -235,7 +295,8 @@ export class GridDataService {
   private handleError<T>(operation = "operation", result?: T) {
     return (error: any): Observable<T> => {
       // TODO: send the error to remote logging infrastructure
-      console.error(`${operation} failed: ${error.message}`, error); // log to console instead
+      // log to console instead
+      console.error(`${operation} failed: ${error.message}`, error);
       this.setupFakeData();
 
       // Let the app keep running by returning an empty result.
@@ -277,64 +338,6 @@ export class GridDataService {
     else return this.rotation;
   }
 
-  // Helper functions for working with latitude and longitude
-
-  metersOffsetToLatLong(
-    originLat: number,
-    originLon: number,
-    distX: number,
-    distY: number
-  ): number[] {
-    /**
-     * Returns coordinate pair [newLat, newLon] where values are offset by
-     * dx, dy meters from center lat, long.
-     *
-     * @param centerLat: central latitude point
-     * @param centerLon: central longitude point
-     * @param dx: x offset in meters
-     * @param xy: y offset in meters
-     * @returns array representing new [lat, lon] coodinate pair.
-     **/
-
-    let dLat = distX / EARTH_RADIUS;
-    let dLon = distY / (EARTH_RADIUS * Math.cos((Math.PI * originLat) / 180));
-    dLat = (dLat * 180) / Math.PI;
-    dLon = (dLon * 180) / Math.PI;
-    let newLat = originLat + dLat;
-    let newLon = originLon + dLon;
-
-    let c = this.WGS84toEPSG31468([originLat, originLon]);
-    let p = [c[0] + distX, c[1] + distY];
-    let d = this.inverseToWGS84(p);
-    console.log(d);
-
-    return d;
-    // return [newLat, newLon];
-  }
-
-  WGS84toEPSG31468(coordinateToReproject: number[]): number[] {
-    // http://spatialreference.org/ref/epsg/dhdn-gauss-kruger-zone-4/proj4/
-    var epsg31468 =
-      "+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs";
-    let reprojectedCoordinate = proj4(epsg31468, [
-      coordinateToReproject[0],
-      coordinateToReproject[1]
-    ]);
-    return reprojectedCoordinate;
-  }
-
-  inverseToWGS84(coordinateToReproject: number[]): number[] {
-    // http://spatialreference.org/ref/epsg/dhdn-gauss-kruger-zone-4/proj4/
-    var epsg31468 =
-      "+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs";
-    var wsg84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs";
-    let reprojectedCoordinate = proj4(wsg84, epsg31468).inverse([
-      coordinateToReproject[0],
-      coordinateToReproject[1]
-    ]);
-    return reprojectedCoordinate;
-  }
-
   translatePolygon(
     translation: number[],
     coordinatesArray: number[][]
@@ -361,6 +364,7 @@ export class GridDataService {
       let newCoordinates = this.rotatePoint(angle, center, coordinates);
       newCoordinatesArray.push(newCoordinates);
     }
+
     return newCoordinatesArray;
   }
 
